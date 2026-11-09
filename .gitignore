@@ -13,3 +13,27 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Vim
+tags
+tags.lock
+tags.temp
+*.swp
+*.swo
+*.swn
+*~
+.netrwhist
+Session.vim
+.vimsession
+*.un~
+
+# Testes unitários e de integração (relatórios e artefatos gerados)
+**/build/reports/
+**/build/test-results/
+**/build/outputs/androidTest-results/
+**/build/outputs/code-coverage/
+**/build/jacoco/
+**/build/kover/
+*.exec
+*.ec
+coverage/
