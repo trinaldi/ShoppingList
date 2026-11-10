@@ -59,7 +59,7 @@ jobs:
       - name: Release and Upload APK
         uses: softprops/action-gh-release@v2
         with:
-          files: build-output/ListaDeCompras.apk
+          files: build-output/ShoppingList.apk
           name: "Shopping List Release ${{ github.ref_name }}"
           body: "Baixe o aplicativo atualizado diretamente no arquivo ShoppingList.apk abaixo."
           draft: false
