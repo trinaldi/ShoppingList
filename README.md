@@ -20,17 +20,3 @@ A modern, multi-list Android shopping application built with **Kotlin Multiplatf
 * **Architecture:** MVVM (Model-View-ViewModel) + StateFlow
 * **Local Database:** Room 3.0 (KMP) with Coroutines support
 * **Language:** Kotlin
-
----
-
-## 📱 Screenshots / UI Overview
-
-*(Add screenshots of your app here if desired)*
-
----
-
-## 📦 Getting Started
-
-1. Clone the repository:
-   ```bash
-   git clone [https://github.com/your-username/your-repo-name.git](https://github.com/your-username/your-repo-name.git)
