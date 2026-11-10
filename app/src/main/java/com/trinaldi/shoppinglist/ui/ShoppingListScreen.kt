@@ -29,7 +29,7 @@ fun ShoppingListsScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("My Shopping Lists") })
+            TopAppBar(title = { Text("Minhas Listas de Compras") })
         },
         floatingActionButton = {
             FloatingActionButton(onClick = {
