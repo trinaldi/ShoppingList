@@ -1,13 +1,16 @@
-name: Build Android Release APK
+name: Build and Release APK
 
 on:
   push:
-    branches: [ "main", "master" ]
-  workflow_dispatch:
+    tags:
+      - 'v*' # Dispara sempre que você criar uma tag como v1.0.0
 
 jobs:
-  build:
+  build-and-release:
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: write # Permite que a Action crie a release e publique arquivos
 
     steps:
       - name: Checkout repository
@@ -25,8 +28,16 @@ jobs:
       - name: Build Release APK
         run: ./gradlew assembleRelease
 
-      - name: Upload APK Artifact
-        uses: actions/upload-artifact@v4
+      - name: Rename APK file
+        run: |
+          mkdir -p build-output
+          cp app/build/outputs/apk/release/app-release.apk build-output/ListaDeCompras.apk
+
+      - name: Release and Upload APK
+        uses: softprops/action-gh-release@v2
         with:
-          name: app-release
-          path: app/build/outputs/apk/release/app-release.apk
+          files: build-output/ListaDeCompras.apk
+          name: "Shopping List Release ${{ github.ref_name }}"
+          body: "Baixe o aplicativo atualizado diretamente no arquivo ListaDeCompras.apk abaixo."
+          draft: false
+          prerelease: false
