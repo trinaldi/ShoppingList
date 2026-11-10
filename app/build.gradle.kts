@@ -39,16 +39,21 @@ android {
         getDefaultProguardFile("proguard-android-optimize.txt"),
         "proguard-rules.pro",
       )
-      if (System.getenv("KEYSTORE_PATH") != null) {
-        signingConfig = signingConfigs.getByName("release")
+
+      val keystorePath = System.getenv("KEYSTORE_PATH")
+      signingConfig = when {
+        keystorePath != null -> signingConfigs.getByName("release")
+        System.getenv("CI") != null -> error("KEYSTORE_PATH não definido no CI")
+        else -> signingConfigs.getByName("debug") // só para build local
       }
-      signingConfig = signingConfigs.getByName("debug")
+
       optimization {
         enable = true
         packageScope = setOf("androidx.**", "kotlin.**", "kotlinx.**")
       }
     }
   }
+
   compileOptions {
     sourceCompatibility = JavaVersion.VERSION_11
     targetCompatibility = JavaVersion.VERSION_11
