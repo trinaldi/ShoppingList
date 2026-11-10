@@ -1,16 +1,17 @@
+
 name: Build and Release APK
 
 on:
   push:
     tags:
-      - 'v*' # Dispara sempre que você criar uma tag como v1.0.0
+      - 'v*'
 
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
 
     permissions:
-      contents: write # Permite que a Action crie a release e publique arquivos
+      contents: write
 
     steps:
       - name: Checkout repository
@@ -25,19 +26,42 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
+      - name: Decode keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          test -n "$KEYSTORE_BASE64" || {
+            echo "KEYSTORE_BASE64 não definido"
+            exit 1
+          }
+
+          echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release.jks"
+
+          test -s "$RUNNER_TEMP/release.jks" || {
+            echo "Keystore inválido ou vazio"
+            exit 1
+          }
+
+          echo "KEYSTORE_PATH=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+
       - name: Build Release APK
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: ./gradlew assembleRelease
 
       - name: Rename APK file
         run: |
           mkdir -p build-output
-          cp app/build/outputs/apk/release/app-release.apk build-output/ListaDeCompras.apk
+          cp app/build/outputs/apk/release/app-release.apk build-output/ShoppingList.apk
 
       - name: Release and Upload APK
         uses: softprops/action-gh-release@v2
         with:
           files: build-output/ListaDeCompras.apk
           name: "Shopping List Release ${{ github.ref_name }}"
-          body: "Baixe o aplicativo atualizado diretamente no arquivo ListaDeCompras.apk abaixo."
+          body: "Baixe o aplicativo atualizado diretamente no arquivo ShoppingList.apk abaixo."
           draft: false
           prerelease: false
+
