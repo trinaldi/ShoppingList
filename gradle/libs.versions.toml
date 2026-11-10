@@ -37,4 +37,4 @@ android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 androidx-room3 = { id = "androidx.room3", version.ref = "room3" }
-dependency-updates = { id = "com.github.ben-manes.versions", version = "0.67.0" }
+dependency-updates = { id = "io.github.ben-manes.versions", version = "0.67.0" }
