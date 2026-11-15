@@ -1,13 +1,23 @@
+
 package com.trinaldi.shoppinglist.ui
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.ShoppingCart
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,10 +43,14 @@ fun ShoppingScreen(
         },
         bottomBar = {
             Surface(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding(),
                 tonalElevation = 8.dp
             ) {
-                Box(modifier = Modifier.padding(16.dp)) {
+                Box(
+                    modifier = Modifier.padding(16.dp)
+                ) {
                     Button(
                         onClick = { viewModel.finishPurchase() },
                         modifier = Modifier.fillMaxWidth(),
@@ -56,30 +70,54 @@ fun ShoppingScreen(
                 .padding(innerPadding)
                 .padding(16.dp)
         ) {
-            OutlinedTextField(
-                value = itemName,
-                onValueChange = { itemName = it },
-                label = { Text("Item") },
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TextField(
+                    value = itemName,
+                    onValueChange = { itemName = it },
+                    label = { Text("Item") },
+                    modifier = Modifier.weight(1f),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.Sentences
+                    ),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+                        unfocusedIndicatorColor = MaterialTheme.colorScheme.outline
+                    )
+                )
 
-            OutlinedTextField(
-                value = itemQuantity,
-                onValueChange = { itemQuantity = it },
-                label = { Text("Quantidade") },
-                modifier = Modifier.fillMaxWidth()
-            )
+                TextField(
+                    value = itemQuantity,
+                    onValueChange = { itemQuantity = it },
+                    label = { Text("Quantidade") },
+                    modifier = Modifier.width(120.dp),
+                    singleLine = true,
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+                        unfocusedIndicatorColor = MaterialTheme.colorScheme.outline
+                    )
+                )
+            }
 
             Spacer(modifier = Modifier.height(8.dp))
 
             Button(
                 onClick = {
                     if (itemName.isNotBlank()) {
-                        val parsedQty = itemQuantity.toIntOrNull() ?: 1
-                        viewModel.addItem(name = itemName, quantity = parsedQty)
+                        viewModel.addItem(
+                            name = itemName,
+                            quantity = itemQuantity
+                        )
                         itemName = ""
-                        itemQuantity = ""
+                        itemQuantity = "1"
                     }
                 },
                 modifier = Modifier.fillMaxWidth()
@@ -97,52 +135,70 @@ fun ShoppingScreen(
             ) {
                 items(items) { item ->
                     Card(
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (item.isPurchased) {
+                                Color(0xFF3B4934)
+                            } else {
+                                MaterialTheme.colorScheme.surface
+                            }
+                        )
                     ) {
                         Row(
                             modifier = Modifier
-                                .padding(16.dp)
-                                .fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
+                                .fillMaxWidth()
+                                .padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column(modifier = Modifier.weight(1f)) {
+                            Column(
+                                modifier = Modifier.weight(1f)
+                            ) {
                                 Text(
                                     text = item.name,
-                                    style = MaterialTheme.typography.titleMedium
+                                    style = MaterialTheme.typography.titleMedium,
+                                    textDecoration = if (item.isPurchased) {
+                                        TextDecoration.LineThrough
+                                    } else {
+                                        TextDecoration.None
+                                    }
                                 )
-                                Text(text = "Quantidade: ${item.quantity}")
-                                if (item.isPurchased) {
-                                    Text(
-                                        text = "Comprado ✓",
-                                        color = MaterialTheme.colorScheme.primary,
-                                        style = MaterialTheme.typography.bodySmall
-                                    )
-                                }
+
+                                Text(
+                                    text = "Quantidade: ${item.quantity}",
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
                             }
 
-                            Row {
-                                Button(
-                                    onClick = { viewModel.toggleItemPurchased(item) },
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = if (item.isPurchased) {
-                                            androidx.compose.ui.graphics.Color(0xFF4CAF50)
-                                        } else {
-                                            MaterialTheme.colorScheme.primary
-                                        }
-                                    )
-                                ) {
-                                    Text(if (item.isPurchased) "Comprado!" else "Comprei")
+                            IconButton(
+                                onClick = {
+                                    viewModel.toggleItemPurchased(item)
                                 }
+                            ) {
+                                Icon(
+                                    imageVector = if (item.isPurchased) {
+                                        Icons.Default.CheckCircle
+                                    } else {
+                                        Icons.Default.ShoppingCart
+                                    },
+                                    contentDescription = null,
+                                    tint = if (item.isPurchased) {
+                                        Color(0xFF8EC07C)
+                                    } else {
+                                        LocalContentColor.current
+                                    }
+                                )
+                            }
 
-                                Spacer(modifier = Modifier.width(8.dp))
-
-                                Button(
-                                    onClick = { viewModel.deleteItem(item) },
-                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                                ) {
-                                    Text("Deletar")
+                            IconButton(
+                                onClick = {
+                                    viewModel.deleteItem(item)
                                 }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = "Deletar item",
+                                    tint = MaterialTheme.colorScheme.error
+                                )
                             }
                         }
                     }

@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface ShoppingListDao {
     @Transaction
-    @Query("SELECT * FROM shopping_lists ORDER BY date DESC")
+    @Query("SELECT * FROM shopping_lists ORDER BY date ASC, id ASC")
     fun getAllListsWithItems(): Flow<List<ShoppingListWithItems>>
 
     @Transaction

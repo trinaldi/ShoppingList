@@ -8,7 +8,7 @@ data class ShoppingItem(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
     val name: String,
-    val quantity: Int,
+    val quantity: String,
     val isPurchased: Boolean = false,
     var listId: Long
 )

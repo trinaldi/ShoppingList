@@ -1,3 +1,4 @@
+
 package com.trinaldi.shoppinglist.ui
 
 import android.app.Application
@@ -11,17 +12,24 @@ import com.trinaldi.shoppinglist.data.ShoppingRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ShoppingViewModel(application: Application) : AndroidViewModel(application) {
-    private val database = AppDatabase.getDatabase(application)
-    private val repository = ShoppingRepository(database.shoppingItemDao(), database.shoppingListDao())
 
-    val allListsWithItems: StateFlow<List<ShoppingListWithItems>> = repository.getAllLists()
-        .stateIn(
+    private val database = AppDatabase.getDatabase(application)
+
+    private val repository = ShoppingRepository(
+        database.shoppingItemDao(),
+        database.shoppingListDao()
+    )
+
+    val allListsWithItems: StateFlow<List<ShoppingListWithItems>> =
+        repository.getAllLists().stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
@@ -29,6 +37,11 @@ class ShoppingViewModel(application: Application) : AndroidViewModel(application
 
     private val _currentListId = MutableStateFlow<Long?>(null)
     val currentListId: StateFlow<Long?> = _currentListId.asStateFlow()
+
+    private val _isCreatingNewList = MutableStateFlow(false)
+    val isCreatingNewList: StateFlow<Boolean> = _isCreatingNewList.asStateFlow()
+
+    private val createListMutex = Mutex()
 
     val items: StateFlow<List<ShoppingItem>> = _currentListId
         .flatMapLatest { listId ->
@@ -45,41 +58,63 @@ class ShoppingViewModel(application: Application) : AndroidViewModel(application
         )
 
     private fun generateDefaultTitle(): String {
-        val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
-        return "Shopping List - ${dateFormat.format(Date())}"
+        val dateFormat = SimpleDateFormat(
+            "dd/MM/yyyy HH:mm",
+            Locale.getDefault()
+        )
+        return "Lista de Compras - ${dateFormat.format(Date())}"
     }
 
     fun selectList(listId: Long) {
         _currentListId.value = listId
+        _isCreatingNewList.value = false
     }
 
     fun clearSelectedList() {
         _currentListId.value = null
+        _isCreatingNewList.value = false
     }
 
     fun createNewList() {
-        viewModelScope.launch {
-            val newId = repository.insertList(ShoppingList(title = generateDefaultTitle()))
-            _currentListId.value = newId
-        }
+        _currentListId.value = null
+        _isCreatingNewList.value = true
     }
 
-    fun addItem(name: String, quantity: Int) {
-        val listId = _currentListId.value ?: return
+    fun addItem(name: String, quantity: String) {
         viewModelScope.launch {
-            val newItem = ShoppingItem(
-                name = name,
-                quantity = quantity,
-                listId = listId,
-                isPurchased = false
-            )
-            repository.insertItem(newItem)
+            createListMutex.withLock {
+                if (_currentListId.value == null) {
+                    if (!_isCreatingNewList.value) {
+                        return@withLock
+                    }
+
+                    val newId = repository.insertList(
+                        ShoppingList(title = generateDefaultTitle())
+                    )
+
+                    _currentListId.value = newId
+                    _isCreatingNewList.value = false
+                }
+
+                val listId = _currentListId.value ?: return@withLock
+
+                val newItem = ShoppingItem(
+                    name = name,
+                    quantity = quantity,
+                    listId = listId,
+                    isPurchased = false
+                )
+
+                repository.insertItem(newItem)
+            }
         }
     }
 
     fun toggleItemPurchased(item: ShoppingItem) {
         viewModelScope.launch {
-            val updatedItem = item.copy(isPurchased = !item.isPurchased)
+            val updatedItem = item.copy(
+                isPurchased = !item.isPurchased
+            )
             repository.updateItem(updatedItem)
         }
     }
@@ -98,15 +133,22 @@ class ShoppingViewModel(application: Application) : AndroidViewModel(application
 
     fun finishPurchase() {
         viewModelScope.launch {
-            val currentId = _currentListId.value ?: return@launch
-            val currentListWithItems = allListsWithItems.value.find { it.shoppingList.id == currentId }
+            val currentId = _currentListId.value
 
-            if (currentListWithItems != null) {
-                val finishedList = currentListWithItems.shoppingList.copy(isFinished = true)
-                repository.updateList(finishedList)
+            if (currentId != null) {
+                val currentListWithItems = allListsWithItems.value.find {
+                    it.shoppingList.id == currentId
+                }
+
+                if (currentListWithItems != null) {
+                    val finishedList = currentListWithItems.shoppingList.copy(
+                        isFinished = true
+                    )
+                    repository.updateList(finishedList)
+                }
             }
 
-            _currentListId.value = null
+            clearSelectedList()
         }
     }
 }
