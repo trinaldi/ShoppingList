@@ -1,3 +1,4 @@
+
 package com.trinaldi.shoppinglist.ui
 
 import androidx.compose.foundation.clickable
@@ -53,8 +54,15 @@ fun ShoppingListsScreen(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { onSelectList(listWithItems.shoppingList.id) }
-                ) {
+                        .clickable { onSelectList(listWithItems.shoppingList.id) },
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isActuallyFinished) {
+                            Color(0xFF3B4934)
+                        } else {
+                            MaterialTheme.colorScheme.surface
+                        }
+                    )
+                ){
                     Row(
                         modifier = Modifier
                             .padding(16.dp)
@@ -64,12 +72,12 @@ fun ShoppingListsScreen(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Shopping List - ${formatDateTime(listWithItems.shoppingList.date)}",
+                                text = "Lista de Compras - ${formatDateTime(listWithItems.shoppingList.date)}",
                                 style = MaterialTheme.typography.titleMedium
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "Items: ${listWithItems.items.size} | Pending: ${listWithItems.items.count { !it.isPurchased }}",
+                                text = "Itens: ${listWithItems.items.size} | Pendentes: ${listWithItems.items.count { !it.isPurchased }}",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.secondary
                             )
@@ -110,7 +118,7 @@ fun ShoppingListsScreen(
                             ),
                             modifier = Modifier.padding(start = 8.dp)
                         ) {
-                            Text("Delete")
+                            Text("Excluir")
                         }
                     }
                 }
