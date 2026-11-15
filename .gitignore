@@ -1,3 +1,6 @@
+.idea/
+.kotlin
+.kotlin/
 *.jks
 *.iml
 .gradle
