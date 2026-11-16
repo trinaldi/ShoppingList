@@ -43,12 +43,12 @@ jobs:
 
           echo "KEYSTORE_PATH=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
 
-      - name: Build Release APK
+      - name: Build Release APK and AAB
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: ./gradlew assembleRelease
+        run: ./gradlew assembleRelease bundleRelease
 
       - name: Verify APK signature
         run: |
@@ -58,16 +58,19 @@ jobs:
           echo "$OUT" | grep -qi "f965f66ff7e6917f417523da56c7063876d845eb82364fa9be1036eaa95fa8cb" \
             || { echo "Certificado diferente do esperado"; exit 1; }
 
-      - name: Rename APK file
+      - name: Rename files
         run: |
           mkdir -p build-output
           cp app/build/outputs/apk/release/app-release.apk build-output/ListaDeCompras.apk
+          cp app/build/outputs/bundle/release/app-release.aab build-output/ListaDeCompras.aab
 
-      - name: Release and Upload APK
+      - name: Release and Upload
         uses: softprops/action-gh-release@v3
         with:
-          files: build-output/ListaDeCompras.apk
+          files: |
+            build-output/ListaDeCompras.apk
+            build-output/ListaDeCompras.aab
           name: "Lista de Compras Release ${{ github.ref_name }}"
-          body: "Baixe o aplicativo atualizado diretamente no arquivo ListaDeCompras.apk abaixo."
+          body: "Baixe o aplicativo atualizado no arquivo ListaDeCompras.apk abaixo."
           draft: false
           prerelease: false
