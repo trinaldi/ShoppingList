@@ -7,17 +7,17 @@ on:
 
 jobs:
   build-and-release:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     permissions:
       contents: write
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '17'
@@ -64,10 +64,10 @@ jobs:
           cp app/build/outputs/apk/release/app-release.apk build-output/ListaDeCompras.apk
 
       - name: Release and Upload APK
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: build-output/ListaDeCompras.apk
-          name: "Shopping List Release ${{ github.ref_name }}"
+          name: "Lista de Compras Release ${{ github.ref_name }}"
           body: "Baixe o aplicativo atualizado diretamente no arquivo ListaDeCompras.apk abaixo."
           draft: false
           prerelease: false
