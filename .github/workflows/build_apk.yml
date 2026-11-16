@@ -1,4 +1,3 @@
-
 name: Build and Release APK
 
 on:
@@ -51,17 +50,24 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: ./gradlew assembleRelease
 
+      - name: Verify APK signature
+        run: |
+          APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          OUT=$("$APKSIGNER" verify --print-certs app/build/outputs/apk/release/app-release.apk)
+          echo "$OUT"
+          echo "$OUT" | grep -qi "f965f66ff7e6917f417523da56c7063876d845eb82364fa9be1036eaa95fa8cb" \
+            || { echo "Certificado diferente do esperado"; exit 1; }
+
       - name: Rename APK file
         run: |
           mkdir -p build-output
-          cp app/build/outputs/apk/release/app-release.apk build-output/ShoppingList.apk
+          cp app/build/outputs/apk/release/app-release.apk build-output/ListaDeCompras.apk
 
       - name: Release and Upload APK
         uses: softprops/action-gh-release@v2
         with:
-          files: build-output/ShoppingList.apk
+          files: build-output/ListaDeCompras.apk
           name: "Shopping List Release ${{ github.ref_name }}"
-          body: "Baixe o aplicativo atualizado diretamente no arquivo ShoppingList.apk abaixo."
+          body: "Baixe o aplicativo atualizado diretamente no arquivo ListaDeCompras.apk abaixo."
           draft: false
           prerelease: false
-
