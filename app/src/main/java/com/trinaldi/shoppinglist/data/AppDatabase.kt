@@ -1,4 +1,3 @@
-
 package com.trinaldi.shoppinglist.data
 
 import android.content.Context

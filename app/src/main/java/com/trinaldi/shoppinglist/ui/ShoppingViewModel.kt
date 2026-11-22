@@ -1,4 +1,3 @@
-
 package com.trinaldi.shoppinglist.ui
 
 import android.app.Application
@@ -9,6 +8,7 @@ import com.trinaldi.shoppinglist.data.ShoppingItem
 import com.trinaldi.shoppinglist.data.ShoppingList
 import com.trinaldi.shoppinglist.data.ShoppingListWithItems
 import com.trinaldi.shoppinglist.data.ShoppingRepository
+import com.trinaldi.shoppinglist.data.ShoplistImportData
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -128,6 +128,35 @@ class ShoppingViewModel(application: Application) : AndroidViewModel(application
     fun deleteShoppingList(shoppingList: ShoppingList) {
         viewModelScope.launch {
             repository.deleteList(shoppingList)
+        }
+    }
+
+    fun importList(
+        data: ShoplistImportData,
+        onComplete: (String?) -> Unit
+    ) {
+        viewModelScope.launch {
+            try {
+                val importedItems = data.items.map { item ->
+                    ShoppingItem(
+                        name = item.name,
+                        quantity = item.quantity,
+                        isPurchased = item.isPurchased,
+                        listId = 0L
+                    )
+                }
+
+                repository.insertListWithItems(
+                    list = ShoppingList(title = data.title),
+                    items = importedItems
+                )
+
+                onComplete(null)
+            } catch (exception: Exception) {
+                onComplete(
+                    exception.message ?: "Não foi possível importar a lista."
+                )
+            }
         }
     }
 
