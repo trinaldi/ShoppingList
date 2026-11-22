@@ -1,7 +1,10 @@
-
 package com.trinaldi.shoppinglist.ui
 
+import android.content.ClipData
+import android.content.Context
 import android.content.Intent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
@@ -11,22 +14,83 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
+import com.trinaldi.shoppinglist.data.ShoplistFileManager
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 fun formatDateTime(timestamp: Long): String {
-    val formatter = SimpleDateFormat("dd/MM/yyyy 'às' HH:mm", Locale.getDefault())
+    val formatter = SimpleDateFormat(
+        "dd/MM/yyyy 'às' HH:mm",
+        Locale.getDefault()
+    )
     return formatter.format(Date(timestamp))
 }
 
 fun formatDate(timestamp: Long): String {
-    val formatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+    val formatter = SimpleDateFormat(
+        "dd/MM/yyyy",
+        Locale.getDefault()
+    )
     return formatter.format(Date(timestamp))
+}
+
+private suspend fun shareShoplistFile(
+    context: Context,
+    content: String,
+    title: String
+) {
+    val safeName = title
+        .replace(Regex("[^\\p{L}\\p{N}._-]"), "_")
+        .take(50)
+        .ifBlank { "lista-de-compras" }
+
+    val file = withContext(Dispatchers.IO) {
+        val directory = File(context.cacheDir, "shared")
+        directory.mkdirs()
+
+        val outputFile = File(
+            directory,
+            "$safeName-${System.currentTimeMillis()}.shoplist"
+        )
+
+        outputFile.writeText(content, Charsets.UTF_8)
+        outputFile
+    }
+
+    val uri = FileProvider.getUriForFile(
+        context,
+        "${context.packageName}.fileprovider",
+        file
+    )
+
+    val sendIntent = Intent(Intent.ACTION_SEND).apply {
+        type = "application/json"
+        putExtra(Intent.EXTRA_STREAM, uri)
+
+        clipData = ClipData.newUri(
+            context.contentResolver,
+            file.name,
+            uri
+        )
+
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+
+    context.startActivity(
+        Intent.createChooser(
+            sendIntent,
+            "Compartilhar lista de compras"
+        ).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    )
 }
 
 @OptIn(
@@ -39,7 +103,43 @@ fun ShoppingListsScreen(
     onSelectList: (Long) -> Unit
 ) {
     val listsWithItems by viewModel.allListsWithItems.collectAsState()
+
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+
+    var dialogMessage by remember {
+        mutableStateOf<String?>(null)
+    }
+
+    val importLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            coroutineScope.launch {
+                try {
+                    val content = withContext(Dispatchers.IO) {
+                        val inputStream = context.contentResolver
+                            .openInputStream(uri)
+                            ?: error("Não foi possível abrir o arquivo.")
+
+                        inputStream.bufferedReader(Charsets.UTF_8).use {
+                            it.readText()
+                        }
+                    }
+
+                    val importedData = ShoplistFileManager.parse(content)
+
+                    viewModel.importList(importedData) { error ->
+                        dialogMessage = error
+                            ?: "Lista importada com sucesso."
+                    }
+                } catch (exception: Exception) {
+                    dialogMessage = exception.message
+                        ?: "Não foi possível importar o arquivo."
+                }
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -50,20 +150,32 @@ fun ShoppingListsScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = {
-                    viewModel.createNewList()
-                },
-                modifier = Modifier.padding(horizontal = 16.dp)
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(
-                    text = "Nova Lista de Compras",
-                    modifier = Modifier.padding(
-                        horizontal = 8.dp,
-                        vertical = 4.dp
-                    ),
-                    softWrap = true
-                )
+                OutlinedButton(
+                    onClick = {
+                        importLauncher.launch(arrayOf("*/*"))
+                    }
+                ) {
+                    Text("Importar lista")
+                }
+
+                FloatingActionButton(
+                    onClick = {
+                        viewModel.createNewList()
+                    }
+                ) {
+                    Text(
+                        text = "Nova Lista de Compras",
+                        modifier = Modifier.padding(
+                            horizontal = 8.dp,
+                            vertical = 4.dp
+                        ),
+                        softWrap = true
+                    )
+                }
             }
         }
     ) { innerPadding ->
@@ -121,10 +233,18 @@ fun ShoppingListsScreen(
                                 modifier = Modifier.weight(1f)
                             ) {
                                 Text(
-                                    text = "Lista de Compras - ${
-                                        formatDateTime(listWithItems.shoppingList.date)
-                                    }",
+                                    text = listWithItems.shoppingList.title,
                                     style = MaterialTheme.typography.titleMedium
+                                )
+
+                                Spacer(modifier = Modifier.height(4.dp))
+
+                                Text(
+                                    text = formatDateTime(
+                                        listWithItems.shoppingList.date
+                                    ),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.secondary
                                 )
 
                                 Spacer(modifier = Modifier.height(4.dp))
@@ -145,7 +265,7 @@ fun ShoppingListsScreen(
                                         shape = MaterialTheme.shapes.small
                                     ) {
                                         Text(
-                                            text = "Finalizada ✓",
+                                            text = "Finalizada",
                                             modifier = Modifier.padding(
                                                 horizontal = 8.dp,
                                                 vertical = 4.dp
@@ -174,38 +294,72 @@ fun ShoppingListsScreen(
 
                             Spacer(modifier = Modifier.width(8.dp))
 
-                            Button(
-                                onClick = {
-                                    val message = buildString {
-                                        append("*Lista de Compras*")
-                                        append("---")
-                                        append("\n\n")
-                                        append(
-                                            listWithItems.items.joinToString("\n") { item ->
-                                                "- ${item.name} (${item.quantity})"
-                                            }
-                                        )
-                                    }
-
-                                    val sendIntent = Intent(Intent.ACTION_SEND).apply {
-                                        type = "text/plain"
-                                        putExtra(Intent.EXTRA_TEXT, message)
-                                    }
-
-                                    context.startActivity(
-                                        Intent.createChooser(
-                                            sendIntent,
-                                            "Compartilhar lista de compras"
-                                        )
-                                    )
-                                },
-                                enabled = listWithItems.items.isNotEmpty(),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.primary,
-                                    contentColor = MaterialTheme.colorScheme.onPrimary
-                                )
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                Text("Compartilhar")
+                                Button(
+                                    onClick = {
+                                        val message = buildString {
+                                            append("*Lista de Compras*")
+                                            append("\n\n")
+                                            append("---")
+                                            append("\n\n")
+                                            append(
+                                                listWithItems.items.joinToString("\n") { item ->
+                                                    "- ${item.name} (${item.quantity})"
+                                                }
+                                            )
+                                        }
+
+                                        val sendIntent = Intent(
+                                            Intent.ACTION_SEND
+                                        ).apply {
+                                            type = "text/plain"
+                                            putExtra(
+                                                Intent.EXTRA_TEXT,
+                                                message
+                                            )
+                                        }
+
+                                        context.startActivity(
+                                            Intent.createChooser(
+                                                sendIntent,
+                                                "Compartilhar lista de compras"
+                                            )
+                                        )
+                                    },
+                                    enabled = listWithItems.items.isNotEmpty()
+                                ) {
+                                    Text("Compartilhar")
+                                }
+
+                                Spacer(modifier = Modifier.height(4.dp))
+
+                                OutlinedButton(
+                                    onClick = {
+                                        coroutineScope.launch {
+                                            try {
+                                                val content =
+                                                    ShoplistFileManager.export(
+                                                        listWithItems
+                                                    )
+
+                                                shareShoplistFile(
+                                                    context = context,
+                                                    content = content,
+                                                    title = listWithItems.shoppingList.title
+                                                )
+                                            } catch (exception: Exception) {
+                                                dialogMessage =
+                                                    exception.message
+                                                        ?: "Não foi possível compartilhar a lista."
+                                            }
+                                        }
+                                    },
+                                    enabled = listWithItems.items.isNotEmpty()
+                                ) {
+                                    Text("Exportar e compartilhar")
+                                }
                             }
                         }
                     }
@@ -234,5 +388,28 @@ fun ShoppingListsScreen(
                 }
             }
         }
+    }
+
+    if (dialogMessage != null) {
+        AlertDialog(
+            onDismissRequest = {
+                dialogMessage = null
+            },
+            title = {
+                Text("Shopping List")
+            },
+            text = {
+                Text(dialogMessage.orEmpty())
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        dialogMessage = null
+                    }
+                ) {
+                    Text("OK")
+                }
+            }
+        )
     }
 }
