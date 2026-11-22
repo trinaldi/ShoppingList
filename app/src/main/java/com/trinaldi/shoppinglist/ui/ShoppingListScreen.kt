@@ -35,14 +35,6 @@ fun formatDateTime(timestamp: Long): String {
     return formatter.format(Date(timestamp))
 }
 
-fun formatDate(timestamp: Long): String {
-    val formatter = SimpleDateFormat(
-        "dd/MM/yyyy",
-        Locale.getDefault()
-    )
-    return formatter.format(Date(timestamp))
-}
-
 private suspend fun shareShoplistFile(
     context: Context,
     content: String,
@@ -184,8 +176,8 @@ fun ShoppingListsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(horizontal = 12.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             items(listsWithItems) { listWithItems ->
 
@@ -222,144 +214,128 @@ fun ShoppingListsScreen(
                             }
                         )
                     ) {
-                        Row(
+                        Column(
                             modifier = Modifier
-                                .padding(16.dp)
-                                .fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Column(
-                                modifier = Modifier.weight(1f)
+                            // List information
+                            Text(
+                                text = listWithItems.shoppingList.title,
+                                style = MaterialTheme.typography.titleMedium
+                            )
+
+                            Text(
+                                text = formatDateTime(
+                                    listWithItems.shoppingList.date
+                                ),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.secondary
+                            )
+
+                            Text(
+                                text = "Itens: ${listWithItems.items.size} | Pendentes: ${
+                                    listWithItems.items.count { !it.isPurchased }
+                                }",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.secondary
+                            )
+
+                            // List status
+                            Surface(
+                                color = if (isActuallyFinished) {
+                                    Color(0xFFE8F5E9)
+                                } else {
+                                    Color(0xFFFFF3E0)
+                                },
+                                shape = MaterialTheme.shapes.small
                             ) {
                                 Text(
-                                    text = listWithItems.shoppingList.title,
-                                    style = MaterialTheme.typography.titleMedium
-                                )
-
-                                Spacer(modifier = Modifier.height(4.dp))
-
-                                Text(
-                                    text = formatDateTime(
-                                        listWithItems.shoppingList.date
+                                    text = if (isActuallyFinished) {
+                                        "Finalizada"
+                                    } else {
+                                        "Pendente"
+                                    },
+                                    modifier = Modifier.padding(
+                                        horizontal = 10.dp,
+                                        vertical = 6.dp
                                     ),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.secondary
-                                )
-
-                                Spacer(modifier = Modifier.height(4.dp))
-
-                                Text(
-                                    text = "Itens: ${listWithItems.items.size} | Pendentes: ${
-                                        listWithItems.items.count { !it.isPurchased }
-                                    }",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.secondary
-                                )
-
-                                Spacer(modifier = Modifier.height(8.dp))
-
-                                if (isActuallyFinished) {
-                                    Surface(
-                                        color = Color(0xFFE8F5E9),
-                                        shape = MaterialTheme.shapes.small
-                                    ) {
-                                        Text(
-                                            text = "Finalizada",
-                                            modifier = Modifier.padding(
-                                                horizontal = 8.dp,
-                                                vertical = 4.dp
-                                            ),
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = Color(0xFF2E7D32)
-                                        )
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = if (isActuallyFinished) {
+                                        Color(0xFF2E7D32)
+                                    } else {
+                                        Color(0xFFE65100)
                                     }
-                                } else {
-                                    Surface(
-                                        color = Color(0xFFFFF3E0),
-                                        shape = MaterialTheme.shapes.small
-                                    ) {
-                                        Text(
-                                            text = "Pendente",
-                                            modifier = Modifier.padding(
-                                                horizontal = 8.dp,
-                                                vertical = 4.dp
-                                            ),
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = Color(0xFFE65100)
-                                        )
-                                    }
-                                }
+                                )
                             }
 
-                            Spacer(modifier = Modifier.width(8.dp))
+                            Spacer(modifier = Modifier.height(4.dp))
 
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Button(
-                                    onClick = {
-                                        val message = buildString {
-                                            append("*Lista de Compras*")
-                                            append("\n\n")
-                                            append("---")
-                                            append("\n\n")
-                                            append(
-                                                listWithItems.items.joinToString("\n") { item ->
-                                                    "- ${item.name} (${item.quantity})"
-                                                }
-                                            )
-                                        }
-
-                                        val sendIntent = Intent(
-                                            Intent.ACTION_SEND
-                                        ).apply {
-                                            type = "text/plain"
-                                            putExtra(
-                                                Intent.EXTRA_TEXT,
-                                                message
-                                            )
-                                        }
-
-                                        context.startActivity(
-                                            Intent.createChooser(
-                                                sendIntent,
-                                                "Compartilhar lista de compras"
-                                            )
-                                        )
-                                    },
-                                    enabled = listWithItems.items.isNotEmpty()
-                                ) {
-                                    Text("Compartilhar")
-                                }
-
-                                Spacer(modifier = Modifier.height(4.dp))
-
-                                OutlinedButton(
-                                    onClick = {
-                                        coroutineScope.launch {
-                                            try {
-                                                val content =
-                                                    ShoplistFileManager.export(
-                                                        listWithItems
-                                                    )
-
-                                                shareShoplistFile(
-                                                    context = context,
-                                                    content = content,
-                                                    title = listWithItems.shoppingList.title
-                                                )
-                                            } catch (exception: Exception) {
-                                                dialogMessage =
-                                                    exception.message
-                                                        ?: "Não foi possível compartilhar a lista."
+                            // Share via WhatsApp or other text-sharing apps
+                            Button(
+                                onClick = {
+                                    val message = buildString {
+                                        append("*Lista de Compras*")
+                                        append("\n\n")
+                                        append("---")
+                                        append("\n\n")
+                                        append(
+                                            listWithItems.items.joinToString("\n") { item ->
+                                                "- ${item.name} (${item.quantity})"
                                             }
+                                        )
+                                    }
+
+                                    val sendIntent = Intent(
+                                        Intent.ACTION_SEND
+                                    ).apply {
+                                        type = "text/plain"
+                                        putExtra(
+                                            Intent.EXTRA_TEXT,
+                                            message
+                                        )
+                                    }
+
+                                    context.startActivity(
+                                        Intent.createChooser(
+                                            sendIntent,
+                                            "Compartilhar lista de compras"
+                                        )
+                                    )
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                enabled = listWithItems.items.isNotEmpty()
+                            ) {
+                                Text("Compartilhar WhatsApp")
+                            }
+
+                            // Export and share .shoplist file
+                            OutlinedButton(
+                                onClick = {
+                                    coroutineScope.launch {
+                                        try {
+                                            val content =
+                                                ShoplistFileManager.export(
+                                                    listWithItems
+                                                )
+
+                                            shareShoplistFile(
+                                                context = context,
+                                                content = content,
+                                                title = listWithItems.shoppingList.title
+                                            )
+                                        } catch (exception: Exception) {
+                                            dialogMessage =
+                                                exception.message
+                                                    ?: "Não foi possível compartilhar a lista."
                                         }
-                                    },
-                                    enabled = listWithItems.items.isNotEmpty()
-                                ) {
-                                    Text("Exportar e compartilhar")
-                                }
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                enabled = listWithItems.items.isNotEmpty()
+                            ) {
+                                Text("Exportar e Compartilhar")
                             }
                         }
                     }
