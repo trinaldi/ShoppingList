@@ -11,6 +11,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -52,9 +53,17 @@ fun ShoppingListsScreen(
             FloatingActionButton(
                 onClick = {
                     viewModel.createNewList()
-                }
+                },
+                modifier = Modifier.padding(horizontal = 16.dp)
             ) {
-                Text("+")
+                Text(
+                    text = "Nova Lista de Compras",
+                    modifier = Modifier.padding(
+                        horizontal = 8.dp,
+                        vertical = 4.dp
+                    ),
+                    softWrap = true
+                )
             }
         }
     ) { innerPadding ->
@@ -168,15 +177,12 @@ fun ShoppingListsScreen(
                             Button(
                                 onClick = {
                                     val message = buildString {
-                                        append("Lista de Compras - ")
-                                        append(
-                                            formatDate(listWithItems.shoppingList.date)
-                                        )
+                                        append("*Lista de Compras*")
+                                        append("---")
                                         append("\n\n")
-
                                         append(
                                             listWithItems.items.joinToString("\n") { item ->
-                                                "${item.name} (${item.quantity})"
+                                                "- ${item.name} (${item.quantity})"
                                             }
                                         )
                                     }
