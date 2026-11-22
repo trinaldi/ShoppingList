@@ -1,6 +1,7 @@
-
 package com.trinaldi.shoppinglist.ui
 
+import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -8,6 +9,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -20,7 +22,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.ShoppingCart
 
 private val PurchasedBackground = Color(0xFF2E7D32)
 private val PurchasedStatusBackground = Color(0xFF1B5E20)
@@ -78,7 +79,7 @@ fun ShoppingScreen(
                         onClick = { viewModel.finishPurchase() },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(56.dp),
+                            .heightIn(min = 56.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.secondary
                         )
@@ -107,7 +108,7 @@ fun ShoppingScreen(
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp)
+                    .heightIn(min = 56.dp)
             ) {
                 Text(
                     text = "ADICIONAR ITEM",
@@ -124,7 +125,15 @@ fun ShoppingScreen(
                     .weight(1f),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(items) { item ->
+                items(
+                    items = items,
+                    key = { it.id }
+                ) { item ->
+
+                    var expanded by rememberSaveable(item.id) {
+                        mutableStateOf(false)
+                    }
+
                     val textColor = if (item.isPurchased) {
                         Color.White
                     } else {
@@ -132,7 +141,11 @@ fun ShoppingScreen(
                     }
 
                     Card(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(enabled = item.isPurchased) {
+                                expanded = !expanded
+                            },
                         colors = CardDefaults.cardColors(
                             containerColor = if (item.isPurchased) {
                                 PurchasedBackground
@@ -147,124 +160,148 @@ fun ShoppingScreen(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .animateContentSize()
                                 .padding(16.dp)
                         ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(
-                                    modifier = Modifier.weight(1f),
-                                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    Text(
-                                        text = item.name,
-                                        style = MaterialTheme.typography.titleLarge,
-                                        fontWeight = FontWeight.Bold,
-                                        color = textColor
-                                    )
-
-                                    Text(
-                                        text = "Quantidade: ${item.quantity}",
-                                        style = MaterialTheme.typography.titleLarge,
-                                        fontWeight = FontWeight.Bold,
-                                        color = textColor
-                                    )
-                                }
-
-                                IconButton(
-                                    onClick = {
-                                        viewModel.deleteItem(item)
-                                    }
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Delete,
-                                        contentDescription = "Excluir item",
-                                        tint = if (item.isPurchased) {
-                                            Color.White
-                                        } else {
-                                            MaterialTheme.colorScheme.error
-                                        }
-                                    )
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(12.dp))
-
-                            if (item.isPurchased) {
-                                Surface(
+                            if (item.isPurchased && !expanded) {
+                                Text(
+                                    text = "${item.name} - ${item.quantity} - Comprado!",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                            } else {
+                                Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                    color = PurchasedStatusBackground,
-                                    shape = MaterialTheme.shapes.medium
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Row(
+                                    Column(
+                                        modifier = Modifier.weight(1f),
+                                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Text(
+                                            text = item.name,
+                                            style = MaterialTheme.typography.titleLarge,
+                                            fontWeight = FontWeight.Bold,
+                                            color = textColor
+                                        )
+
+                                        Text(
+                                            text = "Quantidade: ${item.quantity}",
+                                            style = MaterialTheme.typography.titleLarge,
+                                            fontWeight = FontWeight.Bold,
+                                            color = textColor
+                                        )
+                                    }
+
+                                    if (!item.isPurchased) {
+                                        IconButton(
+                                            onClick = {
+                                                viewModel.deleteItem(item)
+                                            }
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Delete,
+                                                contentDescription = "Excluir item",
+                                                tint = MaterialTheme.colorScheme.error
+                                            )
+                                        }
+                                    }
+                                }
+
+                                if (item.isPurchased) {
+                                    Spacer(modifier = Modifier.height(12.dp))
+
+                                    Surface(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(14.dp),
-                                        horizontalArrangement = Arrangement.Center,
-                                        verticalAlignment = Alignment.CenterVertically
+                                            .clickable {
+                                                viewModel.toggleItemPurchased(item)
+                                                expanded = false
+                                            },
+                                        color = PurchasedStatusBackground,
+                                        shape = MaterialTheme.shapes.medium
+                                    ) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(14.dp),
+                                            horizontalArrangement = Arrangement.Center,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.CheckCircle,
+                                                contentDescription = null,
+                                                tint = Color.White,
+                                                modifier = Modifier.size(30.dp)
+                                            )
+
+                                            Spacer(modifier = Modifier.width(8.dp))
+
+                                            Text(
+                                                text = "JÁ COMPRADO",
+                                                style = MaterialTheme.typography.titleLarge,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                color = Color.White
+                                            )
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(4.dp))
+
+                                    TextButton(
+                                        onClick = {
+                                            viewModel.deleteItem(item)
+                                        },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .heightIn(min = 48.dp),
+                                        colors = ButtonDefaults.textButtonColors(
+                                            contentColor = Color.White
+                                        )
                                     ) {
                                         Icon(
-                                            imageVector = Icons.Default.CheckCircle,
-                                            contentDescription = null,
-                                            tint = Color.White,
-                                            modifier = Modifier.size(30.dp)
+                                            imageVector = Icons.Default.Delete,
+                                            contentDescription = null
                                         )
 
                                         Spacer(modifier = Modifier.width(8.dp))
 
                                         Text(
-                                            text = "JÁ COMPRADO",
-                                            style = MaterialTheme.typography.titleLarge,
-                                            fontWeight = FontWeight.ExtraBold,
-                                            color = Color.White
+                                            text = "EXCLUIR",
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                } else {
+                                    Spacer(modifier = Modifier.height(12.dp))
+
+                                    Button(
+                                        onClick = {
+                                            viewModel.toggleItemPurchased(item)
+                                            expanded = false
+                                        },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .heightIn(min = 56.dp),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = Color(0xFF176B70),
+                                            contentColor = Color.White
+                                        )
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.CheckCircle,
+                                            contentDescription = null
+                                        )
+
+                                        Spacer(modifier = Modifier.width(8.dp))
+
+                                        Text(
+                                            text = "MARCAR COMO COMPRADO",
+                                            fontWeight = FontWeight.Bold,
+                                            style = MaterialTheme.typography.titleMedium
                                         )
                                     }
                                 }
-                            }
-
-                            Spacer(modifier = Modifier.height(12.dp))
-
-                            Button(
-                                onClick = {
-                                    viewModel.toggleItemPurchased(item)
-                                },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(56.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (item.isPurchased) {
-                                        Color.White
-                                    } else {
-                                        Color(0xFF176B70)
-                                    },
-                                    contentColor = if (item.isPurchased) {
-                                        PurchasedStatusBackground
-                                    } else {
-                                        Color.White
-                                    }
-                                )
-                            ) {
-                                Icon(
-                                    imageVector = if (item.isPurchased) {
-                                        Icons.Default.ShoppingCart
-                                    } else {
-                                        Icons.Default.CheckCircle
-                                    },
-                                    contentDescription = null
-                                )
-
-                                Spacer(modifier = Modifier.width(8.dp))
-
-                                Text(
-                                    text = if (item.isPurchased) {
-                                        "DESFAZER"
-                                    } else {
-                                        "MARCAR COMO COMPRADO"
-                                    },
-                                    fontWeight = FontWeight.Bold,
-                                    style = MaterialTheme.typography.titleMedium
-                                )
                             }
                         }
                     }
