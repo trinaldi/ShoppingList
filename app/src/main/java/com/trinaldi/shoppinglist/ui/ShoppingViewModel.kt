@@ -115,7 +115,29 @@ class ShoppingViewModel(application: Application) : AndroidViewModel(application
             val updatedItem = item.copy(
                 isPurchased = !item.isPurchased
             )
+
             repository.updateItem(updatedItem)
+
+            val updatedItems = repository
+                .getItemsForList(item.listId)
+                .first()
+
+            val shouldBeFinished = updatedItems.isNotEmpty() &&
+                    updatedItems.all { it.isPurchased }
+
+            val currentList = allListsWithItems.value.find {
+                it.shoppingList.id == item.listId
+            }
+
+            if (currentList != null &&
+                currentList.shoppingList.isFinished != shouldBeFinished
+            ) {
+                repository.updateList(
+                    currentList.shoppingList.copy(
+                        isFinished = shouldBeFinished
+                    )
+                )
+            }
         }
     }
 
@@ -157,27 +179,6 @@ class ShoppingViewModel(application: Application) : AndroidViewModel(application
                     exception.message ?: "Não foi possível importar a lista."
                 )
             }
-        }
-    }
-
-    fun finishPurchase() {
-        viewModelScope.launch {
-            val currentId = _currentListId.value
-
-            if (currentId != null) {
-                val currentListWithItems = allListsWithItems.value.find {
-                    it.shoppingList.id == currentId
-                }
-
-                if (currentListWithItems != null) {
-                    val finishedList = currentListWithItems.shoppingList.copy(
-                        isFinished = true
-                    )
-                    repository.updateList(finishedList)
-                }
-            }
-
-            clearSelectedList()
         }
     }
 }

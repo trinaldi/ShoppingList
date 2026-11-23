@@ -3,19 +3,19 @@ package com.trinaldi.shoppinglist.ui
 import android.content.ClipData
 import android.content.Context
 import android.content.Intent
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import com.trinaldi.shoppinglist.data.ShoplistFileManager
@@ -85,10 +85,7 @@ private suspend fun shareShoplistFile(
     )
 }
 
-@OptIn(
-    ExperimentalMaterial3Api::class,
-    ExperimentalFoundationApi::class
-)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ShoppingListsScreen(
     viewModel: ShoppingViewModel,
@@ -103,75 +100,60 @@ fun ShoppingListsScreen(
         mutableStateOf<String?>(null)
     }
 
-    val importLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument()
-    ) { uri ->
-        if (uri != null) {
-            coroutineScope.launch {
-                try {
-                    val content = withContext(Dispatchers.IO) {
-                        val inputStream = context.contentResolver
-                            .openInputStream(uri)
-                            ?: error("Não foi possível abrir o arquivo.")
-
-                        inputStream.bufferedReader(Charsets.UTF_8).use {
-                            it.readText()
-                        }
-                    }
-
-                    val importedData = ShoplistFileManager.parse(content)
-
-                    viewModel.importList(importedData) { error ->
-                        dialogMessage = error
-                            ?: "Lista importada com sucesso."
-                    }
-                } catch (exception: Exception) {
-                    dialogMessage = exception.message
-                        ?: "Não foi possível importar o arquivo."
-                }
-            }
-        }
+    var selectedFinishedList by remember {
+        mutableStateOf<Long?>(null)
     }
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            CenterAlignedTopAppBar(
                 title = {
-                    Text("Minhas Listas de Compras")
+                    Text(
+                        text = "Minhas Listas de Compras",
+                        textAlign = TextAlign.Center
+                    )
                 }
             )
         },
-        floatingActionButton = {
-            Column(
-                horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+        bottomBar = {
+            Surface(
+                tonalElevation = 3.dp
             ) {
-                OutlinedButton(
-                    onClick = {
-                        importLauncher.launch(arrayOf("*/*"))
-                    }
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .padding(vertical = 4.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Text("Importar lista")
-                }
+                    TextButton(
+                        onClick = {
+                            viewModel.createNewList()
+                        }
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = "Nova Lista",
+                                modifier = Modifier.size(28.dp)
+                            )
 
-                FloatingActionButton(
-                    onClick = {
-                        viewModel.createNewList()
+                            Text(
+                                text = "Nova Lista",
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        }
                     }
-                ) {
-                    Text(
-                        text = "Nova Lista de Compras",
-                        modifier = Modifier.padding(
-                            horizontal = 8.dp,
-                            vertical = 4.dp
-                        ),
-                        softWrap = true
-                    )
                 }
             }
         }
     ) { innerPadding ->
-
+        val sortedLists = listsWithItems.sortedByDescending {
+            it.shoppingList.isFinished
+        }
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -179,17 +161,12 @@ fun ShoppingListsScreen(
                 .padding(horizontal = 12.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            items(listsWithItems) { listWithItems ->
-
+            items(sortedLists) { listWithItems ->
                 var showMenu by remember(listWithItems.shoppingList.id) {
                     mutableStateOf(false)
                 }
 
-                val hasPendingItems =
-                    listWithItems.items.any { !it.isPurchased }
-
-                val isActuallyFinished =
-                    listWithItems.shoppingList.isFinished && !hasPendingItems
+                val isFinished = listWithItems.shoppingList.isFinished
 
                 Box(
                     modifier = Modifier.fillMaxWidth(),
@@ -200,142 +177,148 @@ fun ShoppingListsScreen(
                             .fillMaxWidth()
                             .combinedClickable(
                                 onClick = {
-                                    onSelectList(listWithItems.shoppingList.id)
+                                    if (isFinished) {
+                                        selectedFinishedList =
+                                            listWithItems.shoppingList.id
+                                    } else {
+                                        onSelectList(
+                                            listWithItems.shoppingList.id
+                                        )
+                                    }
                                 },
                                 onLongClick = {
                                     showMenu = true
                                 }
                             ),
                         colors = CardDefaults.cardColors(
-                            containerColor = if (isActuallyFinished) {
+                            containerColor = if (isFinished) {
                                 Color(0xFF3B4934)
                             } else {
                                 MaterialTheme.colorScheme.surface
                             }
                         )
                     ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            // List information
-                            Text(
-                                text = listWithItems.shoppingList.title,
-                                style = MaterialTheme.typography.titleMedium
-                            )
-
-                            Text(
-                                text = formatDateTime(
-                                    listWithItems.shoppingList.date
-                                ),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.secondary
-                            )
-
-                            Text(
-                                text = "Itens: ${listWithItems.items.size} | Pendentes: ${
-                                    listWithItems.items.count { !it.isPurchased }
-                                }",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.secondary
-                            )
-
-                            // List status
-                            Surface(
-                                color = if (isActuallyFinished) {
-                                    Color(0xFFE8F5E9)
-                                } else {
-                                    Color(0xFFFFF3E0)
-                                },
-                                shape = MaterialTheme.shapes.small
+                        if (isFinished) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = if (isActuallyFinished) {
-                                        "Finalizada"
-                                    } else {
-                                        "Pendente"
-                                    },
-                                    modifier = Modifier.padding(
-                                        horizontal = 10.dp,
-                                        vertical = 6.dp
-                                    ),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = if (isActuallyFinished) {
-                                        Color(0xFF2E7D32)
-                                    } else {
-                                        Color(0xFFE65100)
-                                    }
+                                    text = "${listWithItems.shoppingList.title} - Finalizada",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = Color(0xFFE8F5E9)
                                 )
                             }
+                        } else {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    text = listWithItems.shoppingList.title,
+                                    style = MaterialTheme.typography.titleMedium
+                                )
 
-                            Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = formatDateTime(
+                                        listWithItems.shoppingList.date
+                                    ),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.secondary
+                                )
 
-                            // Share via WhatsApp or other text-sharing apps
-                            Button(
-                                onClick = {
-                                    val message = buildString {
-                                        append("*Lista de Compras*")
-                                        append("\n\n")
-                                        append("---")
-                                        append("\n\n")
-                                        append(
-                                            listWithItems.items.joinToString("\n") { item ->
-                                                "- ${item.name} (${item.quantity})"
-                                            }
-                                        )
-                                    }
+                                Text(
+                                    text = "Itens: ${listWithItems.items.size} | Pendentes: ${
+                                        listWithItems.items.count { !it.isPurchased }
+                                    }",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.secondary
+                                )
 
-                                    val sendIntent = Intent(
-                                        Intent.ACTION_SEND
-                                    ).apply {
-                                        type = "text/plain"
-                                        putExtra(
-                                            Intent.EXTRA_TEXT,
-                                            message
-                                        )
-                                    }
-
-                                    context.startActivity(
-                                        Intent.createChooser(
-                                            sendIntent,
-                                            "Compartilhar lista de compras"
-                                        )
+                                Surface(
+                                    color = Color(0xFFFFF3E0),
+                                    shape = MaterialTheme.shapes.small
+                                ) {
+                                    Text(
+                                        text = "Pendente",
+                                        modifier = Modifier.padding(
+                                            horizontal = 10.dp,
+                                            vertical = 6.dp
+                                        ),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = Color(0xFFE65100)
                                     )
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                enabled = listWithItems.items.isNotEmpty()
-                            ) {
-                                Text("Compartilhar WhatsApp")
-                            }
+                                }
 
-                            // Export and share .shoplist file
-                            OutlinedButton(
-                                onClick = {
-                                    coroutineScope.launch {
-                                        try {
-                                            val content =
-                                                ShoplistFileManager.export(
-                                                    listWithItems
-                                                )
+                                Spacer(modifier = Modifier.height(4.dp))
 
-                                            shareShoplistFile(
-                                                context = context,
-                                                content = content,
-                                                title = listWithItems.shoppingList.title
+                                Button(
+                                    onClick = {
+                                        val message = buildString {
+                                            append("*Lista de Compras*")
+                                            append("\n\n")
+                                            append("---")
+                                            append("\n\n")
+                                            append(
+                                                listWithItems.items.joinToString("\n") { item ->
+                                                    "- ${item.name} (${item.quantity})"
+                                                }
                                             )
-                                        } catch (exception: Exception) {
-                                            dialogMessage =
-                                                exception.message
-                                                    ?: "Não foi possível compartilhar a lista."
                                         }
-                                    }
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                enabled = listWithItems.items.isNotEmpty()
-                            ) {
-                                Text("Exportar e Compartilhar")
+
+                                        val sendIntent = Intent(
+                                            Intent.ACTION_SEND
+                                        ).apply {
+                                            type = "text/plain"
+                                            putExtra(
+                                                Intent.EXTRA_TEXT,
+                                                message
+                                            )
+                                        }
+
+                                        context.startActivity(
+                                            Intent.createChooser(
+                                                sendIntent,
+                                                "Compartilhar lista de compras"
+                                            )
+                                        )
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    enabled = listWithItems.items.isNotEmpty()
+                                ) {
+                                    Text("Compartilhar WhatsApp")
+                                }
+
+                                OutlinedButton(
+                                    onClick = {
+                                        coroutineScope.launch {
+                                            try {
+                                                val content =
+                                                    ShoplistFileManager.export(
+                                                        listWithItems
+                                                    )
+
+                                                shareShoplistFile(
+                                                    context = context,
+                                                    content = content,
+                                                    title = listWithItems.shoppingList.title
+                                                )
+                                            } catch (exception: Exception) {
+                                                dialogMessage =
+                                                    exception.message
+                                                        ?: "Não foi possível compartilhar a lista."
+                                            }
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    enabled = listWithItems.items.isNotEmpty()
+                                ) {
+                                    Text("Exportar e Compartilhar")
+                                }
                             }
                         }
                     }
@@ -366,13 +349,49 @@ fun ShoppingListsScreen(
         }
     }
 
+    val finishedList = listsWithItems.firstOrNull {
+        it.shoppingList.id == selectedFinishedList
+    }
+
+    if (finishedList != null) {
+        AlertDialog(
+            onDismissRequest = {
+                selectedFinishedList = null
+            },
+            title = {
+                Text(finishedList.shoppingList.title)
+            },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    finishedList.items.forEach { item ->
+                        Text(
+                            text = "${item.name} - ${item.quantity}",
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        selectedFinishedList = null
+                    }
+                ) {
+                    Text("Fechar")
+                }
+            }
+        )
+    }
+
     if (dialogMessage != null) {
         AlertDialog(
             onDismissRequest = {
                 dialogMessage = null
             },
             title = {
-                Text("Shopping List")
+                Text("Lista de Compras")
             },
             text = {
                 Text(dialogMessage.orEmpty())
