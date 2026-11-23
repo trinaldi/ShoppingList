@@ -68,9 +68,9 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           files: |
-            build-output/ListaDeCompras.apk
+            build-output/ListaDeCompras-${{ env.RELEASE_VERSION }}.apk
           name: "Lista de Compras Release ${{ github.ref_name }}"
-          body: "Baixe o aplicativo atualizado no arquivo ListaDeCompras.apk abaixo."
+          body: "Baixe o aplicativo atualizado no arquivo APK abaixo."
           draft: false
           prerelease: false
 
