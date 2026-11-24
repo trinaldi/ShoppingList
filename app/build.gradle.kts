@@ -8,6 +8,7 @@ plugins {
 
 android {
   namespace = "com.trinaldi.shoppinglist"
+  ndkVersion = "30.0.16248370"
   signingConfigs {
     create("release") {
       val path = System.getenv("KEYSTORE_PATH")
