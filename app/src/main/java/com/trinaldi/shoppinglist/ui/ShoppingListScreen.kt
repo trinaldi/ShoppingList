@@ -104,16 +104,60 @@ fun ShoppingListsScreen(
         mutableStateOf<Long?>(null)
     }
 
+    var selectedTabIndex by remember {
+        mutableIntStateOf(0)
+    }
+
+    val activeLists = listsWithItems.filter {
+        !it.shoppingList.isFinished
+    }
+
+    val finishedLists = listsWithItems.filter {
+        it.shoppingList.isFinished
+    }
+
+    val visibleLists = if (selectedTabIndex == 0) {
+        activeLists
+    } else {
+        finishedLists
+    }
+
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        text = "Minhas Listas de Compras",
-                        textAlign = TextAlign.Center
+            Column {
+                CenterAlignedTopAppBar(
+                    title = {
+                        Text(
+                            text = "Minhas Listas de Compras",
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                )
+
+                SecondaryTabRow(
+                    selectedTabIndex = selectedTabIndex
+                ) {
+                    Tab(
+                        selected = selectedTabIndex == 0,
+                        onClick = {
+                            selectedTabIndex = 0
+                        },
+                        text = {
+                            Text("Ativo")
+                        }
+                    )
+
+                    Tab(
+                        selected = selectedTabIndex == 1,
+                        onClick = {
+                            selectedTabIndex = 1
+                        },
+                        text = {
+                            Text("Histórico")
+                        }
                     )
                 }
-            )
+            }
         },
         bottomBar = {
             Surface(
@@ -151,9 +195,7 @@ fun ShoppingListsScreen(
             }
         }
     ) { innerPadding ->
-        val sortedLists = listsWithItems.sortedByDescending {
-            it.shoppingList.isFinished
-        }
+
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -161,7 +203,11 @@ fun ShoppingListsScreen(
                 .padding(horizontal = 12.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            items(sortedLists) { listWithItems ->
+            items(
+                items = visibleLists,
+                key = { it.shoppingList.id }
+            ) { listWithItems ->
+
                 var showMenu by remember(listWithItems.shoppingList.id) {
                     mutableStateOf(false)
                 }
@@ -260,8 +306,6 @@ fun ShoppingListsScreen(
                                     onClick = {
                                         val message = buildString {
                                             append("*Lista de Compras*")
-                                            append("\n\n")
-                                            append("---")
                                             append("\n\n")
                                             append(
                                                 listWithItems.items.joinToString("\n") { item ->
