@@ -9,6 +9,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
@@ -207,13 +208,14 @@ fun ShoppingScreen(
                                     if (!item.isPurchased) {
                                         IconButton(
                                             onClick = {
-                                                viewModel.deleteItem(item)
+                                                viewModel.toggleItemPurchased(item)
                                             }
                                         ) {
                                             Icon(
-                                                imageVector = Icons.Default.Delete,
-                                                contentDescription = "Excluir item",
-                                                tint = MaterialTheme.colorScheme.error
+                                                imageVector = Icons.Default.CheckCircle,
+                                                contentDescription = "Marcar como comprado",
+                                                tint = Color(0xFF00E98C),
+                                                modifier = Modifier.size(32.dp)
                                             )
                                         }
                                     }
@@ -280,35 +282,6 @@ fun ShoppingScreen(
                                         Text(
                                             text = "EXCLUIR",
                                             fontWeight = FontWeight.Bold
-                                        )
-                                    }
-                                } else {
-                                    Spacer(modifier = Modifier.height(12.dp))
-
-                                    Button(
-                                        onClick = {
-                                            viewModel.toggleItemPurchased(item)
-                                            expanded = false
-                                        },
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .heightIn(min = 56.dp),
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = Color(0xFF176B70),
-                                            contentColor = Color.White
-                                        )
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.CheckCircle,
-                                            contentDescription = null
-                                        )
-
-                                        Spacer(modifier = Modifier.width(8.dp))
-
-                                        Text(
-                                            text = "MARCAR COMO COMPRADO",
-                                            fontWeight = FontWeight.Bold,
-                                            style = MaterialTheme.typography.titleMedium
                                         )
                                     }
                                 }

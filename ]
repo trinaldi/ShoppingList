@@ -1,0 +1,372 @@
+package com.trinaldi.shoppinglist.ui
+
+import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.unit.dp
+
+private val PurchasedBackground = Color(0xFF2E7D32)
+private val PurchasedStatusBackground = Color(0xFF1B5E20)
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ShoppingScreen(
+    viewModel: ShoppingViewModel,
+    onBack: () -> Unit
+) {
+    val items by viewModel.items.collectAsState()
+
+    var itemName by remember { mutableStateOf("") }
+    var itemQuantity by remember { mutableStateOf("") }
+    var showAddItemDialog by remember { mutableStateOf(false) }
+
+    val nameFocusRequester = remember { FocusRequester() }
+    val quantityFocusRequester = remember { FocusRequester() }
+
+    val addItem = {
+        if (itemName.isNotBlank()) {
+            viewModel.addItem(
+                name = itemName.trim(),
+                quantity = itemQuantity.trim().ifBlank { "1" }
+            )
+
+            itemName = ""
+            itemQuantity = ""
+            showAddItemDialog = false
+        }
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Itens para comprar") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Text("←")
+                    }
+                }
+            )
+        },
+        bottomBar = {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding(),
+                tonalElevation = 8.dp
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    TextButton(
+                        onClick = { onBack() },
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.primary
+                        )
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Voltar às listas",
+                                modifier = Modifier.size(28.dp)
+                            )
+                            Text(
+                                text = "Voltar às listas",
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(16.dp)
+        ) {
+            Button(
+                onClick = {
+                    itemName = ""
+                    itemQuantity = ""
+                    showAddItemDialog = true
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 56.dp)
+            ) {
+                Text(
+                    text = "ADICIONAR ITEM",
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleMedium
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(
+                    items = items,
+                    key = { it.id }
+                ) { item ->
+
+                    var expanded by rememberSaveable(item.id) {
+                        mutableStateOf(false)
+                    }
+
+                    val textColor = if (item.isPurchased) {
+                        Color.White
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    }
+
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(enabled = item.isPurchased) {
+                                expanded = !expanded
+                            },
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (item.isPurchased) {
+                                PurchasedBackground
+                            } else {
+                                MaterialTheme.colorScheme.surface
+                            }
+                        ),
+                        elevation = CardDefaults.cardElevation(
+                            defaultElevation = 3.dp
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .animateContentSize()
+                                .padding(16.dp)
+                        ) {
+                            if (item.isPurchased && !expanded) {
+                                Text(
+                                    text = "${item.name} - ${item.quantity} - Comprado!",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                            } else {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(
+                                        modifier = Modifier.weight(1f),
+                                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Text(
+                                            text = item.name,
+                                            style = MaterialTheme.typography.titleLarge,
+                                            fontWeight = FontWeight.Bold,
+                                            color = textColor
+                                        )
+
+                                        Text(
+                                            text = "Quantidade: ${item.quantity}",
+                                            style = MaterialTheme.typography.titleLarge,
+                                            fontWeight = FontWeight.Bold,
+                                            color = textColor
+                                        )
+                                    }
+
+                                    if (!item.isPurchased) {
+                                        IconButton(
+                                            onClick = {
+                                                viewModel.toggleItemPurchased(item)
+                                            }
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.CheckCircle,
+                                                contentDescription = "Marcar como comprado",
+                                                tint = Color(0x00E98C),
+                                                modifier = Modifier.size(32.dp)
+                                            )
+                                        }
+                                    }
+                                }
+
+                                if (item.isPurchased) {
+                                    Spacer(modifier = Modifier.height(12.dp))
+
+                                    Surface(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable {
+                                                viewModel.toggleItemPurchased(item)
+                                                expanded = false
+                                            },
+                                        color = PurchasedStatusBackground,
+                                        shape = MaterialTheme.shapes.medium
+                                    ) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(14.dp),
+                                            horizontalArrangement = Arrangement.Center,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.CheckCircle,
+                                                contentDescription = null,
+                                                tint = Color.White,
+                                                modifier = Modifier.size(30.dp)
+                                            )
+
+                                            Spacer(modifier = Modifier.width(8.dp))
+
+                                            Text(
+                                                text = "JÁ COMPRADO",
+                                                style = MaterialTheme.typography.titleLarge,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                color = Color.White
+                                            )
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(4.dp))
+
+                                    TextButton(
+                                        onClick = {
+                                            viewModel.deleteItem(item)
+                                        },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .heightIn(min = 48.dp),
+                                        colors = ButtonDefaults.textButtonColors(
+                                            contentColor = Color.White
+                                        )
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Delete,
+                                            contentDescription = null
+                                        )
+
+                                        Spacer(modifier = Modifier.width(8.dp))
+
+                                        Text(
+                                            text = "EXCLUIR",
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (showAddItemDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showAddItemDialog = false
+            },
+            title = {
+                Text(
+                    text = "Adicionar item",
+                    style = MaterialTheme.typography.headlineSmall
+                )
+            },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    OutlinedTextField(
+                        value = itemName,
+                        onValueChange = { itemName = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusRequester(nameFocusRequester),
+                        label = { Text("Nome do item") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(
+                            capitalization = KeyboardCapitalization.Sentences,
+                            imeAction = ImeAction.Next
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onNext = {
+                                quantityFocusRequester.requestFocus()
+                            }
+                        )
+                    )
+
+                    OutlinedTextField(
+                        value = itemQuantity,
+                        onValueChange = { itemQuantity = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusRequester(quantityFocusRequester),
+                        label = { Text("Quantidade") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(
+                            imeAction = ImeAction.Done
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onDone = {
+                                addItem()
+                            }
+                        )
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        addItem()
+                    },
+                    enabled = itemName.isNotBlank(),
+                    modifier = Modifier.height(48.dp)
+                ) {
+                    Text("ADICIONAR")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showAddItemDialog = false
+                    },
+                    modifier = Modifier.height(48.dp)
+                ) {
+                    Text("CANCELAR")
+                }
+            }
+        )
+    }
+}
